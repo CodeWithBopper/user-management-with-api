@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>User Management Mock</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, sans-serif;
+        color: #172033;
+        background: #f3f6fb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem 1rem;
+      }
+
+      main {
+        width: min(100%, 760px);
+        margin: 0 auto;
+      }
+
+      header {
+        margin-bottom: 1.5rem;
+      }
+
+      .eyebrow {
+        color: #4258a5;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin-top: 0;
+      }
+
+      .card {
+        margin: 1rem 0;
+        padding: 1.5rem;
+        border: 1px solid #dce3ef;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 4px 16px rgb(23 32 51 / 5%);
+      }
+
+      form,
+      .lookup {
+        display: grid;
+        gap: 1rem;
+      }
+
+      label {
+        display: grid;
+        gap: 0.4rem;
+        font-weight: 600;
+      }
+
+      input,
+      select {
+        width: 100%;
+        min-height: 2.75rem;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid #aeb9ca;
+        border-radius: 6px;
+        font: inherit;
+      }
+
+      button {
+        min-height: 2.6rem;
+        padding: 0.55rem 0.9rem;
+        border: 0;
+        border-radius: 6px;
+        background: #344da1;
+        color: white;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 650;
+      }
+
+      button:hover:not(:disabled) {
+        background: #263d88;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+      }
+
+      th,
+      td {
+        padding: 0.75rem 0.5rem;
+        border-bottom: 1px solid #dce3ef;
+      }
+
+      th {
+        color: #4258a5;
+        font-size: 0.85rem;
+      }
+
+      #empty-users {
+        margin-bottom: 0;
+        color: #58657a;
+      }
+
+      .danger {
+        background: #a12e3d;
+      }
+
+      .danger:hover:not(:disabled) {
+        background: #822332;
+      }
+
+      #message {
+        min-height: 1.5rem;
+        font-weight: 650;
+      }
+
+      #message[data-state="error"] {
+        color: #a12e3d;
+      }
+
+      #user-details {
+        margin-top: 1rem;
+      }
+
+      #user-details:empty {
+        display: none;
+      }
+
+      dl {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 0.4rem 1rem;
+      }
+
+      dt {
+        font-weight: 650;
+      }
+
+      dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+
+      @media (min-width: 600px) {
+        form {
+          grid-template-columns: 1fr 1fr;
+          align-items: end;
+        }
+
+        form button {
+          grid-column: 1 / -1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Mock user management</p>
+        <h1>Welcome to Playwright</h1>
+        <p>Use this page to create, retrieve, and delete users through the API.</p>
+      </header>
+
+      <section class="card" aria-labelledby="create-heading">
+        <h2 id="create-heading">Create a user</h2>
+        <form id="create-user-form">
+          <label for="name">
+            Name
+            <input id="name" name="name" required minlength="1">
+          </label>
+          <label for="email">
+            Email
+            <input id="email" name="email" type="email" required>
+          </label>
+          <label for="status">
+            Status
+            <select id="status" name="status">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <button type="submit">Create user</button>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="users-heading">
+        <div class="section-title">
+          <h2 id="users-heading">Users</h2>
+          <button id="refresh-users" type="button">Refresh users</button>
+        </div>
+        <div class="table-wrap">
+          <table aria-labelledby="users-heading">
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Email</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body"></tbody>
+          </table>
+        </div>
+        <p id="empty-users">Loading users...</p>
+      </section>
+
+      <section class="card" aria-labelledby="manage-heading">
+        <h2 id="manage-heading">Retrieve or delete a user</h2>
+        <div class="lookup">
+          <label for="user-id">
+            User ID
+            <input
+              id="user-id"
+              name="userId"
+              type="number"
+              min="1"
+              max="999999"
+              step="1"
+              autocomplete="off"
+            >
+          </label>
+          <div class="actions">
+            <button id="retrieve-user" type="button">Retrieve user</button>
+            <button id="delete-user" class="danger" type="button" disabled>
+              Delete user
+            </button>
+          </div>
+        </div>
+        <div id="user-details"></div>
+      </section>
+
+      <p id="message" role="status" aria-live="polite"></p>
+    </main>
+
+    <script>
+      const createForm = document.getElementById('create-user-form');
+      const userIdInput = document.getElementById('user-id');
+      const retrieveButton = document.getElementById('retrieve-user');
+      const deleteButton = document.getElementById('delete-user');
+      const userDetails = document.getElementById('user-details');
+      const usersTableBody = document.getElementById('users-table-body');
+      const emptyUsers = document.getElementById('empty-users');
+      const refreshUsersButton = document.getElementById('refresh-users');
+      const message = document.getElementById('message');
+
+      function setMessage(text, isError = false) {
+        message.textContent = text;
+        message.dataset.state = isError ? 'error' : 'success';
+      }
+
+      function getErrorMessage(error) {
+        return error instanceof Error ? error.message : 'An unexpected error occurred.';
+      }
+
+      async function sendRequest(path, options) {
+        const response = await fetch(path, options);
+        const body = response.status === 204 ? null : await response.json();
+
+        if (!response.ok) {
+          throw new Error(body?.message || 'The request failed.');
+        }
+
+        return body;
+      }
+
+      function renderUsers(users) {
+        usersTableBody.replaceChildren();
+
+        for (const user of users) {
+          const row = document.createElement('tr');
+          for (const value of [user.name, user.email, user.status]) {
+            const cell = document.createElement('td');
+            cell.textContent = value;
+            row.append(cell);
+          }
+          usersTableBody.append(row);
+        }
+
+        emptyUsers.textContent = users.length === 0 ? 'No users found.' : '';
+        emptyUsers.hidden = users.length > 0;
+      }
+
+      async function refreshUsers() {
+        const users = await sendRequest('/api/users');
+        renderUsers(users);
+      }
+
+      function showUser(user) {
+        const heading = document.createElement('h3');
+        heading.textContent = user.name;
+
+        const details = document.createElement('dl');
+        for (const [label, value] of [
+          ['Email', user.email],
+          ['Status', user.status],
+          ['ID', user.id],
+        ]) {
+          const term = document.createElement('dt');
+          term.textContent = label;
+          const description = document.createElement('dd');
+          description.textContent = value;
+          details.append(term, description);
+        }
+
+        userDetails.replaceChildren(heading, details);
+        userIdInput.value = user.id;
+        deleteButton.disabled = false;
+      }
+
+      createForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const newUser = {
+          name: document.getElementById('name').value,
+          email: document.getElementById('email').value,
+          status: document.getElementById('status').value,
+        };
+
+        try {
+          const user = await sendRequest('/api/users', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(newUser),
+          });
+          showUser(user);
+          await refreshUsers();
+          setMessage(`Created user ${user.name}.`);
+        } catch (error) {
+          setMessage(getErrorMessage(error), true);
+        }
+      });
+
+      retrieveButton.addEventListener('click', async () => {
+        const id = userIdInput.value.trim();
+        if (!id) {
+          setMessage('Enter a user ID to retrieve.', true);
+          return;
+        }
+
+        try {
+          const user = await sendRequest(`/api/users/${encodeURIComponent(id)}`);
+          showUser(user);
+          setMessage(`Retrieved user ${user.name}.`);
+        } catch (error) {
+          userDetails.replaceChildren();
+          deleteButton.disabled = true;
+          setMessage(getErrorMessage(error), true);
+        }
+      });
+
+      deleteButton.addEventListener('click', async () => {
+        const id = userIdInput.value.trim();
+        if (!id) {
+          setMessage('Enter a user ID to delete.', true);
+          return;
+        }
+
+        try {
+          await sendRequest(`/api/users/${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+          });
+          userDetails.replaceChildren();
+          deleteButton.disabled = true;
+          await refreshUsers();
+          setMessage(`Deleted user ${id}.`);
+        } catch (error) {
+          setMessage(getErrorMessage(error), true);
+        }
+      });
+
+      refreshUsersButton.addEventListener('click', async () => {
+        try {
+          await refreshUsers();
+          setMessage('User list refreshed.');
+        } catch (error) {
+          setMessage(getErrorMessage(error), true);
+        }
+      });
+
+      refreshUsers().catch((error) => {
+        emptyUsers.textContent = 'Unable to load users.';
+        emptyUsers.hidden = false;
+        setMessage(getErrorMessage(error), true);
+      });
+    </script>
+  </body>
+</html>

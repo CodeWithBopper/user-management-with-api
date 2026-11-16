@@ -4,7 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "playwright test"
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "prestart": "npm run build",
+    "start": "node dist/server.js",
+    "test": "playwright test",
+    "test:api": "playwright test --project=api"
   },
   "repository": {
     "type": "git",
@@ -19,6 +24,9 @@
   },
   "homepage": "https://github.com/CodeWithBopper/user-management-with-api#readme",
   "devDependencies": {
-    "@playwright/test": "^1.65.1"
+    "@faker-js/faker": "^10.6.0",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
   }
 }
