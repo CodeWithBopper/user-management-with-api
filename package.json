@@ -1,0 +1,24 @@
+{
+  "name": "user-management-with-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CodeWithBopper/user-management-with-api.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/CodeWithBopper/user-management-with-api/issues"
+  },
+  "homepage": "https://github.com/CodeWithBopper/user-management-with-api#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
+  }
+}
