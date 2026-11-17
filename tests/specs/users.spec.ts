@@ -1,8 +1,10 @@
 import { faker } from '@faker-js/faker';
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/user.fixture';
+import { UserApiClient } from '../helpers/user-api.client';
 import { UserManagementHelper } from '../helpers/user-management.helper';
 import { UserManagementPage } from '../pages/user-management.page';
+import type { NewUser } from '../types/user';
 
 const userManagementHelper = new UserManagementHelper();
 
@@ -13,21 +15,32 @@ test.afterEach(async ({ request }, testInfo) => {
   }
 });
 
-test('creates a user through the api and verifies it appears in the users table', async ({ page, request }) => {
-  const newUser = {
-    name: 'API Created User',
-    email: `api-created-${faker.string.uuid()}@example.test`,
-    status: 'active' as const,
-  };
-  await request.post('/api/users', { data: newUser });
+test(
+  'creates a user through the api and verifies it appears in the users table',
+  async ({ page, request }, testInfo) => {
+    const newUser: NewUser = {
+      name: 'API Created User',
+      email: `api-created-${faker.string.uuid()}@example.test`,
+      status: 'active',
+    };
+    userManagementHelper.registerUserForCleanup(testInfo, newUser.email);
 
-  const userPage = new UserManagementPage(page);
-  await userPage.goto();
-  const userRow = userPage.userRow(newUser.email);
-  await expect(userRow).toBeVisible();
-  await expect(userRow).toContainText(newUser.name);
-  await expect(userRow).toContainText(newUser.status);
-});
+    const userApi = new UserApiClient(request);
+    const createResponse = await userApi.createUser(newUser);
+    expect(createResponse.status).toBe(201);
+    expect(createResponse.body).toMatchObject({
+      ...newUser,
+      id: expect.any(Number),
+    });
+
+    const userPage = new UserManagementPage(page);
+    await userPage.goto();
+    const userRow = userPage.userRow(newUser.email);
+    await expect(userRow).toBeVisible();
+    await expect(userRow).toContainText(newUser.name);
+    await expect(userRow).toContainText(newUser.status);
+  },
+);
 
 test('loads the user management page and its content', async ({ page }) => {
   const userPage = new UserManagementPage(page);

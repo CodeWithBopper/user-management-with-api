@@ -1,10 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-
-export interface NewUser {
-  name: string;
-  email: string;
-  status: 'active' | 'inactive';
-}
+import type { NewUser } from '../types/user';
 
 export class UserManagementPage {
   private readonly page: Page;

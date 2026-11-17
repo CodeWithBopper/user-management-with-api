@@ -1,12 +1,7 @@
 import { faker } from '@faker-js/faker';
 import { expect, test as base } from '@playwright/test';
-
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  status: 'active' | 'inactive';
-}
+import { UserApiClient } from '../helpers/user-api.client';
+import type { NewUser, User } from '../types/user';
 
 interface UserFixtures {
   user: User;
@@ -15,17 +10,25 @@ interface UserFixtures {
 export const test = base.extend<UserFixtures>({
   user: [
     async ({ request }, use) => {
-      const newUser = {
+      const newUser: NewUser = {
         name: faker.person.fullName(),
         email: `fixture-${faker.string.uuid()}@example.test`,
-        status: 'active' as const,
+        status: 'active',
       };
 
-      const createResponse = await request.post('/api/users', { data: newUser });
-      expect(createResponse.status()).toBe(201);
+      const userApi = new UserApiClient(request);
+      const createResponse = await userApi.createUser(newUser);
+      expect(createResponse.status).toBe(201);
 
-      const user = (await createResponse.json()) as User;
-      expect(user).toMatchObject(newUser);
+      const responseBody = createResponse.body;
+      if (!responseBody || 'code' in responseBody) {
+        throw new Error(
+          `Expected POST /api/users to return a user; received status ${createResponse.status}.`,
+        );
+      }
+
+      const user: User = responseBody;
+      expect(user).toMatchObject({ ...newUser });
       expect(user.id).toEqual(expect.any(Number));
       expect(Number.isInteger(user.id)).toBe(true);
       expect(user.id).toBeGreaterThanOrEqual(1);
@@ -34,8 +37,8 @@ export const test = base.extend<UserFixtures>({
       try {
         await use(user);
       } finally {
-        const deleteResponse = await request.delete(`/api/users/${user.id}`);
-        expect([204, 404]).toContain(deleteResponse.status());
+        const deleteResponse = await userApi.deleteUser(user.id);
+        expect([204, 404]).toContain(deleteResponse.status);
       }
     },
     { scope: 'test' },

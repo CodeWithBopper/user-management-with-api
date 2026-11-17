@@ -18,7 +18,8 @@ This repository contains a small in-memory user-management API, a mock browser U
 | `tests/api/` | API contract tests and the OpenAPI definition |
 | `tests/pages/` | Page objects: locators and user-facing page actions |
 | `tests/fixtures/` | Playwright fixtures that provide reusable test-scoped data |
-| `tests/helpers/` | Reusable workflows and cleanup support that do not belong in a spec |
+| `tests/helpers/` | Reusable UI workflows, API client, and cleanup support |
+| `tests/types/` | Shared user and API result types |
 | `playwright.config.ts` | Test projects, browser settings, and local web server startup |
 | `tsconfig.json` | Strict type-checking configuration for application and test code |
 | `tsconfig.build.json` | Build configuration for the server |
@@ -144,17 +145,19 @@ Avoid page methods named `expect...` that assert a whole scenario internally. Th
 
 ## 6. Fixtures for reusable test data
 
-The custom `user` fixture in `tests/fixtures/user.fixture.ts` creates a user through Playwright's built-in `request` fixture and provides the resulting typed user to tests.
+The custom `user` fixture in `tests/fixtures/user.fixture.ts` creates a user through `UserApiClient` using Playwright's built-in `request` fixture and provides the resulting typed user to tests.
 
 ```ts
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/user.fixture';
+import { UserApiClient } from '../helpers/user-api.client';
 
 test('retrieves a user', async ({ request, user }) => {
-  const response = await request.get(`/api/users/${user.id}`);
+  const userApi = new UserApiClient(request);
+  const response = await userApi.getUser(user.id);
 
-  expect(response.status()).toBe(200);
-  expect(await response.json()).toEqual(user);
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual(user);
 });
 ```
 
@@ -224,20 +227,44 @@ The OpenAPI contract is maintained in [`tests/api/openapi.json`](../tests/api/op
 
 User data requires a non-empty name, valid email, and a status of `active` or `inactive`. IDs are server-generated integers from `1` to `999999`. Deletion removes the user; it does not change the status to inactive.
 
-Use the built-in `request` fixture for API tests. Assert both the HTTP status and relevant response data:
+Use the built-in `request` fixture to construct `UserApiClient` for API operations. The client centralizes endpoint paths and returns an object with `status` and `body` properties. Its methods cover listing, creating, retrieving, updating, and deleting users. The body is typed as the expected success data, an API error body, or `undefined`. For `DELETE`, a successful `204` response has `body: undefined`; error responses expose their JSON error body.
+
+```ts
+const userApi = new UserApiClient(request);
+const response = await userApi.createUser({
+  name: 'Example User',
+  email: `test-${faker.string.uuid()}@example.test`,
+  status: 'active',
+});
+
+expect(response.status).toBe(201);
+expect(response.body).toMatchObject({ name: 'Example User', status: 'active' });
+```
+
+For deletion, both the status and the lack of a response body can be asserted:
+
+```ts
+const response = await userApi.deleteUser(user.id);
+
+expect(response.status).toBe(204);
+expect(response.body).toBeUndefined();
+```
+
+Keep assertions in tests, not in the client. A typical update test looks like this:
 
 ```ts
 test('replaces a user while preserving its ID', async ({ request, user }) => {
+  const userApi = new UserApiClient(request);
   const replacement = {
     name: faker.person.fullName(),
     email: `updated-${faker.string.uuid()}@example.test`,
     status: 'inactive' as const,
   };
 
-  const response = await request.put(`/api/users/${user.id}`, { data: replacement });
+  const response = await userApi.updateUser(user.id, replacement);
 
-  expect(response.status()).toBe(200);
-  expect(await response.json()).toEqual({ id: user.id, ...replacement });
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({ id: user.id, ...replacement });
 });
 ```
 

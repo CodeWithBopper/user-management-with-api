@@ -1,6 +1,8 @@
 import { faker } from '@faker-js/faker';
 import type { APIRequestContext, Page, TestInfo } from '@playwright/test';
-import { UserManagementPage, type NewUser } from '../pages/user-management.page';
+import { UserApiClient } from './user-api.client';
+import { UserManagementPage } from '../pages/user-management.page';
+import type { NewUser } from '../types/user';
 
 export class UserManagementHelper {
   private readonly usersToCleanUp = new WeakMap<TestInfo, Set<string>>();
@@ -32,28 +34,28 @@ export class UserManagementHelper {
       return [];
     }
 
-    return Promise.all([...emails].map((email) => this.cleanupUser(request, email)));
+    const userApi = new UserApiClient(request);
+    return Promise.all([...emails].map((email) => this.cleanupUser(userApi, email)));
   }
 
-  private registerUserForCleanup(testInfo: TestInfo, email: string): void {
+  registerUserForCleanup(testInfo: TestInfo, email: string): void {
     const emails = this.usersToCleanUp.get(testInfo) ?? new Set<string>();
     emails.add(email);
     this.usersToCleanUp.set(testInfo, emails);
   }
 
-  private async cleanupUser(request: APIRequestContext, email: string): Promise<number> {
-    const usersResponse = await request.get('/api/users');
-    if (!usersResponse.ok()) {
-      return usersResponse.status();
+  private async cleanupUser(userApi: UserApiClient, email: string): Promise<number> {
+    const usersResponse = await userApi.listUsers();
+    if (usersResponse.status !== 200 || !Array.isArray(usersResponse.body)) {
+      return usersResponse.status;
     }
 
-    const users = (await usersResponse.json()) as Array<{ id: number; email: string }>;
-    const user = users.find((candidate) => candidate.email === email);
+    const user = usersResponse.body.find((candidate) => candidate.email === email);
     if (!user) {
       return 404;
     }
 
-    const deleteResponse = await request.delete(`/api/users/${user.id}`);
-    return deleteResponse.status();
+    const deleteResponse = await userApi.deleteUser(user.id);
+    return deleteResponse.status;
   }
 }
